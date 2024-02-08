@@ -1,10 +1,11 @@
 ## mamba-minimal
 
-Simple, minimal implementation of Mamba in one file of PyTorch.
+Tiny implementation of Mamba in one file of PyTorch.
 
 Featuring:
 * Equivalent numerical output as official implementation for both forward and backward pass
 * Simplified, readable, annotated code
+* An alternative to using parallel scan (not available in pytorch as of current) via cumsum
 
 Does NOT include:
 * Speed. The official implementation is heavily optimized, and these optimizations are core contributions of the Mamba paper. I kept most implementations simple for readability.

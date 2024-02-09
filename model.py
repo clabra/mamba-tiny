@@ -318,7 +318,7 @@ class MambaBlock(nn.Module):
         dA_star = F.pad(dA[:, 1:].cumsum(1), (0, 0, 0, 0, 1, 0)).cfloat()
         x_log = torch.logcumsumexp(dB_u_log - dA_star, 1) + dA_star
         
-        y = torch.einsum('bldn,bln->bld', x_log.exp().real, C)
+        y = torch.einsum('bldn,bln->bld', x_log.real.exp() * torch.cos(x_log.imag), C)
         return y + u * D
 
 

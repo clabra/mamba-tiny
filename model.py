@@ -29,7 +29,7 @@ from typing import Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import einsum, rearrange, repeat
+from einops import rearrange, repeat
 
 from utils import selective_scan
 
@@ -91,9 +91,7 @@ class Mamba(nn.Module):
             x = layer(x)
             
         x = self.norm_f(x)
-        logits = self.lm_head(x)
-
-        return logits
+        return self.lm_head(x)
 
     @staticmethod
     def from_pretrained(pretrained_model_name: str):
@@ -172,9 +170,7 @@ class ResidualBlock(nn.Module):
                 [Norm -> Mamba -> Add] -> [Norm -> Mamba -> Add] -> [Norm -> Mamba -> Add] -> ....
             
         """
-        output = self.mixer(self.norm(x)) + x
-
-        return output
+        return self.mixer(self.norm(x)) + x
             
 
 class MambaBlock(nn.Module):
@@ -234,9 +230,7 @@ class MambaBlock(nn.Module):
         
         y = y * F.silu(res)
         
-        output = self.out_proj(y)
-
-        return output
+        return self.out_proj(y)
 
     def ssm(self, x):
         """Runs the SSM. See:
@@ -268,9 +262,7 @@ class MambaBlock(nn.Module):
         (delta, B, C) = x_dbl.split(split_size=[self.args.dt_rank, n, n], dim=-1)  # delta: (b, l, dt_rank). B, C: (b, l, n)
         delta = F.softplus(self.dt_proj(delta))  # (b, l, d_in)
         
-        y = selective_scan(x, delta, A, B, C, D, mode=self.args.scan_mode)  # This is similar to run_SSM(A, B, C, u) in The Annotated S4 [2]
-        
-        return y
+        return selective_scan(x, delta, A, B, C, D, mode=self.args.scan_mode)  # This is similar to run_SSM(A, B, C, u) in The Annotated S4 [2]
 
 
 class RMSNorm(nn.Module):

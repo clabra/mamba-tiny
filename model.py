@@ -73,7 +73,6 @@ class Mamba(nn.Module):
         self.lm_head.weight = self.embedding.weight  # Tie output projection to embedding weights.
                                                      # See "Weight Tying" paper
 
-
     def forward(self, input_ids):
         """
         Args:
@@ -96,7 +95,6 @@ class Mamba(nn.Module):
 
         return logits
 
-    
     @staticmethod
     def from_pretrained(pretrained_model_name: str):
         """Load pretrained weights from HuggingFace into model.
@@ -154,7 +152,6 @@ class ResidualBlock(nn.Module):
         self.mixer = MambaBlock(args)
         self.norm = RMSNorm(args.d_model)
         
-
     def forward(self, x):
         """
         Args:
@@ -208,7 +205,6 @@ class MambaBlock(nn.Module):
         self.D = nn.Parameter(torch.ones(args.d_inner))
         self.out_proj = nn.Linear(args.d_inner, args.d_model, bias=args.bias)
         
-
     def forward(self, x):
         """Mamba block forward. This looks the same as Figure 3 in Section 3.4 in the Mamba paper [1].
     
@@ -242,7 +238,6 @@ class MambaBlock(nn.Module):
 
         return output
 
-    
     def ssm(self, x):
         """Runs the SSM. See:
             - Algorithm 2 in Section 3.2 in the Mamba paper [1]
@@ -286,9 +281,7 @@ class RMSNorm(nn.Module):
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(d_model))
 
-
     def forward(self, x):
         output = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps) * self.weight
 
         return output
-        

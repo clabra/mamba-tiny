@@ -94,7 +94,7 @@ class Mamba(nn.Module):
         return self.lm_head(x)
 
     @staticmethod
-    def from_pretrained(pretrained_model_name: str):
+    def from_pretrained(pretrained_model_name: str, model=None):
         """Load pretrained weights from HuggingFace into model.
     
         Args:
@@ -124,21 +124,23 @@ class Mamba(nn.Module):
                                                 _raise_exceptions_for_missing_entries=False)
             return torch.load(resolved_archive_file, weights_only=True, map_location='cpu', mmap=True)
         
-        config_data = load_config_hf(pretrained_model_name)
-        args = ModelArgs(
-            d_model=config_data['d_model'],
-            n_layer=config_data['n_layer'],
-            vocab_size=config_data['vocab_size']
-        )
-        model = Mamba(args)
+        if model is None:
+            config_data = load_config_hf(pretrained_model_name)
+            model = Mamba(ModelArgs(
+                d_model=config_data['d_model'], 
+                n_layer=config_data['n_layer'], 
+                vocab_size=config_data['vocab_size'], 
+            ))
         
-        state_dict = load_state_dict_hf(pretrained_model_name)
-        new_state_dict = {}
-        for key in state_dict:
-            new_key = key.replace('backbone.', '')
-            new_state_dict[new_key] = state_dict[key]
-        model.load_state_dict(new_state_dict)
+        pretrained_dict = load_state_dict_hf(pretrained_model_name)
+        model_dict = model.state_dict()
         
+        for k, v in pretrained_dict.items():
+            k_new = k.replace('backbone.', '')
+            if k_new in model_dict and v.size() == model_dict[k_new].size():
+                model_dict[k_new] = pretrained_dict[k]
+        
+        model.load_state_dict(model_dict)
         return model
 
 

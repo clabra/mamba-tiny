@@ -31,7 +31,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, repeat
 
-from utils import selective_scan
+from scans import selective_scan
 
 
 @dataclass

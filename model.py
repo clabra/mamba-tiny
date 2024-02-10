@@ -31,12 +31,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import einsum, rearrange, repeat
 
-
-def complex_log(input, eps=1e-12):
-    eps = input.new_tensor(eps)
-    real = input.abs().maximum(eps).log()
-    imag = (input < 0).to(input.dtype) * torch.pi
-    return torch.complex(real, imag)
+from utils import selective_scan
 
 
 @dataclass
@@ -51,6 +46,7 @@ class ModelArgs:
     pad_vocab_size_multiple: int = 8
     conv_bias: bool = True
     bias: bool = False
+    scan_mode: str = 'cumsum'
     
     def __post_init__(self):
         self.d_inner = int(self.expand * self.d_model)
@@ -277,49 +273,9 @@ class MambaBlock(nn.Module):
         (delta, B, C) = x_dbl.split(split_size=[self.args.dt_rank, n, n], dim=-1)  # delta: (b, l, dt_rank). B, C: (b, l, n)
         delta = F.softplus(self.dt_proj(delta))  # (b, l, d_in)
         
-        y = self.selective_scan(x, delta, A, B, C, D)  # This is similar to run_SSM(A, B, C, u) in The Annotated S4 [2]
+        y = selective_scan(x, delta, A, B, C, D, mode=self.args.scan_mode)  # This is similar to run_SSM(A, B, C, u) in The Annotated S4 [2]
         
         return y
-    
-    
-    def selective_scan(self, u, dt, A, B, C, D):
-        """Does selective scan algorithm. See:
-            - Section 2 State Space Models in the Mamba paper [1]
-            - Algorithm 2 in Section 3.2 in the Mamba paper [1]
-            - run_SSM(A, B, C, u) in The Annotated S4 [2]
-
-        This is the classic discrete state space formula:
-            x(t + 1) = Ax(t) + Bu(t)
-            y(t)     = Cx(t) + Du(t)
-        except B and C (and the step size delta, which is used for discretization) are dependent on the input x(t).
-    
-        Args:
-            u: shape (b, l, d_in)    (See Glossary at top for definitions of b, l, d_in, n...)
-            delta: shape (b, l, d_in)
-            A: shape (d_in, n)
-            B: shape (b, l, n)
-            C: shape (b, l, n)
-            D: shape (d_in,)
-    
-        Returns:
-            output: shape (b, l, d_in)
-    
-        Official Implementation:
-            selective_scan_ref(), https://github.com/state-spaces/mamba/blob/main/mamba_ssm/ops/selective_scan_interface.py#L86
-            NOTE: I refactored some parts out of `selective_scan_ref` out, so the functionality doesn't match exactly.
-            NOTE: This implementation is an alternative to the official implementation with parallel scan
-                and does not include IO optimizations (kernel fusion), though this may happen implicitly 
-                under the hood if wrapped with torch.compile
-        """        
-        dA = torch.einsum('bld,dn->bldn', dt, A)
-        dB_u = torch.einsum('bld,bld,bln->bldn', dt, u, B)
-        dB_u_log = complex_log(dB_u)
-        
-        dA_star = F.pad(dA[:, 1:].cumsum(1), (0, 0, 0, 0, 1, 0)).cfloat()
-        x_log = torch.logcumsumexp(dB_u_log - dA_star, 1) + dA_star
-        
-        y = torch.einsum('bldn,bln->bld', x_log.real.exp() * torch.cos(x_log.imag), C)
-        return y + u * D
 
 
 class RMSNorm(nn.Module):

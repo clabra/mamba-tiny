@@ -10,11 +10,11 @@ def complex_log(input, eps=1e-12):
 
 
 def selective_scan(u, dt, A, B, C, D, mode='cumsum'):
+    dA = torch.einsum('bld,dn->bldn', dt, A)
+    dB_u = torch.einsum('bld,bld,bln->bldn', dt, u, B)
+    
     match mode:
         case 'cumsum':
-            dA = torch.einsum('bld,dn->bldn', dt, A)
-            dB_u = torch.einsum('bld,bld,bln->bldn', dt, u, B)
-            
             dA_cumsum = F.pad(dA[:, 1:], (0, 0, 0, 0, 0, 1)).flip(1).cumsum(1).exp().flip(1)
             x = dB_u * dA_cumsum
             x = x.cumsum(1) / (dA_cumsum + 1e-12)
@@ -23,11 +23,9 @@ def selective_scan(u, dt, A, B, C, D, mode='cumsum'):
             return y + u * D
         
         case 'logcumsumexp':
-            dA = torch.einsum('bld,dn->bldn', dt, A)
-            dB_u = torch.einsum('bld,bld,bln->bldn', dt, u, B)
             dB_u_log = complex_log(dB_u)
             
-            dA_star = F.pad(dA[:, 1:].cumsum(1), (0, 0, 0, 0, 1, 0)).cfloat()
+            dA_star = F.pad(dA[:, 1:].cumsum(1), (0, 0, 0, 0, 1, 0))
             x_log = torch.logcumsumexp(dB_u_log - dA_star, 1) + dA_star
             
             y = torch.einsum('bldn,bln->bld', x_log.real.exp() * torch.cos(x_log.imag), C)

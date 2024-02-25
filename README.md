@@ -1,6 +1,6 @@
 ## mamba-tiny
 
-Tiny implementation of Mamba in one file of PyTorch.
+Tiny implementation of Mamba in PyTorch.
 
 Featuring:
 * Equivalent numerical output as official implementation for both forward and backward pass
@@ -9,8 +9,11 @@ Featuring:
 inspired by [heisen_sequence](https://github.com/glassroom/heinsen_sequence)
 
 Does NOT include:
-* Speed. The official implementation is heavily optimized, and these optimizations are core contributions of the Mamba paper. I kept most implementations simple for readability.
+* Recurrent mode of the network intended for inference. The demo code (sentence generation) effectively runs the network as if it were the forward pass during training, which is much slower than the recurrent mode.
+* Kernel fusion. This repo does not make any attempt to perform kernel fusion of the selective scan operations with the other dense operations. So all the internal states of the model would be explicitly materialized, so memory usage may be a bottleneck.
 * Proper parameter initialization (though this could be added without sacrificing readability)
+
+Currently, the supposedly more stable `logcumsumexp` scan mode (heisen sequence) only works on the gpu for sentence generation (`demo.ipynb`) but somehow diverges on the cpu.
 
 ## Demo
 
